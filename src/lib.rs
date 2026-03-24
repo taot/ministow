@@ -295,6 +295,12 @@ fn merge_options(
         return Err("--ignore-conflicts requires --dry-run".to_string());
     }
 
+    let packages = cli
+        .packages
+        .iter()
+        .map(|package| normalize_package_name(package))
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(EffectiveOptions {
         target,
         verbose,
@@ -302,8 +308,16 @@ fn merge_options(
         dry_run,
         ignore_conflicts,
         delete: cli.delete || config.delete,
-        packages: cli.packages,
+        packages,
     })
+}
+
+fn normalize_package_name(package: &str) -> Result<String, String> {
+    let normalized = package.trim_end_matches(['/', '\\']);
+    if normalized.is_empty() {
+        return Err(format!("invalid package name '{package}'"));
+    }
+    Ok(normalized.to_string())
 }
 
 fn build_context(cwd: &Path, options: EffectiveOptions) -> Result<AppContext, String> {

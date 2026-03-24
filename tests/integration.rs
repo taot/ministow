@@ -188,6 +188,44 @@ fn dry_run_after_install_is_quiet_for_satisfied_targets() {
 }
 
 #[test]
+fn strips_trailing_separator_from_package_name_in_logs() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+
+    bin()
+        .current_dir(&repo)
+        .args(["--dry-run", "--verbose=1", "fcitx/"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("stowing package 'fcitx'"))
+        .stdout(predicates::str::contains("stowing package 'fcitx/'").not());
+}
+
+#[test]
+fn trailing_separator_package_name_installs_same_package() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+    let target = temp.path().join("target-home");
+
+    bin()
+        .current_dir(&repo)
+        .args(["--target", target.to_str().unwrap(), "fcitx/"])
+        .assert()
+        .success();
+
+    assert!(target
+        .join(".local/share/fcitx5/rime/default.yaml")
+        .symlink_metadata()
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    assert_eq!(
+        read_link_target(&target.join(".local/share/fcitx5/rime/default.yaml")),
+        "../../../../../repo/fcitx/.local/share/fcitx5/rime/default.yaml"
+    );
+}
+
+#[test]
 fn config_file_is_loaded_and_cli_overrides_verbose() {
     let temp = setup_repo();
     let repo = temp.path().join("repo");
