@@ -15,6 +15,7 @@ The tool should let users choose exactly which package subdirectories are folded
 ## Goals
 
 - Provide a CLI workflow similar to GNU Stow for installing package contents into a target directory.
+- Provide a CLI workflow for deleting symlinks previously created for a package.
 - Treat each first-level directory under the working directory as a package.
 - Preserve relative file layout from package to target.
 - Allow users to explicitly choose which package subdirectories should be tree-folded.
@@ -24,7 +25,6 @@ The tool should let users choose exactly which package subdirectories are folded
 ## Non-Goals
 
 - Full GNU Stow feature parity in v1.
-- Unstow/delete support in v1.
 - Restow/refold logic in v1.
 - Ignore rules, adopt mode, override/defer behavior, or package ownership tracking beyond safe install-time checks.
 - Windows-specific symlink handling optimizations.
@@ -58,6 +58,7 @@ taothomeconfig/
 Examples:
 
 - `ministow base`
+- `ministow --delete base`
 - `ministow --fold=wezterm/.config/wezterm wezterm`
 - `ministow --fold=fcitx/.local/share/fcitx5/rime fcitx`
 
@@ -104,6 +105,30 @@ $TARGET/.config/wezterm -> <repo>/wezterm/.config/wezterm
 
 Instead of separate links for files inside `wezterm/.config/wezterm/`.
 
+### Delete Behavior
+
+If `-D` or `--delete` is specified, `ministow` removes symlinks in the target that belong to the given package.
+
+- Only symlinks pointing into the selected package may be removed.
+- Empty directories created only to contain removed links should be cleaned up.
+- Directories or files not owned by the package must not be removed.
+- When a folded directory symlink was created for a package, deleting that package removes the folded symlink.
+
+Example:
+
+```bash
+ministow --delete base
+```
+
+Expected result:
+
+```text
+$HOME/.bashrc.init removed
+$HOME/.bashrc.env removed
+$HOME/.tmux.conf removed
+$HOME/bin/foreach removed
+```
+
 ### Fold Matching Rules
 
 - Fold paths are package-relative including package name, e.g. `wezterm/.config/wezterm`.
@@ -118,6 +143,8 @@ Instead of separate links for files inside `wezterm/.config/wezterm/`.
 ```bash
 ministow [OPTIONS] <PACKAGE>...
 ```
+
+The default action is install/stow. Use `-D` or `--delete` to unstow packages.
 
 ### Positional Arguments
 
@@ -155,6 +182,12 @@ Behavior:
 
 - Use a specific config file instead of the default.
 
+#### `-D`, `--delete`
+
+- Delete symlinks for the given package or packages from the target directory.
+- The same package argument rules apply as install mode.
+- When omitted, the action is install/stow.
+
 ## Config File Requirements
 
 ### Default Location
@@ -182,6 +215,9 @@ The config file contains command-line style options, one per line. Example:
   - `--target`
   - `--verbose`
   - `--config`
+- Action flags in config files are ignored:
+  - `-D`
+  - `--delete`
 - Repeatable options are additive:
   - `--fold` entries from config and CLI are combined
 
@@ -215,6 +251,12 @@ Cases:
 - Existing directory at target path where file symlink is needed -> error
 - Existing symlink pointing somewhere else -> error
 
+For delete mode:
+
+- Existing non-symlink files matching package paths must not be removed.
+- Existing symlinks not pointing into the selected package must not be removed.
+- Existing directories containing entries not owned by the selected package must not be removed.
+
 ### No-Op Cases
 
 The tool should treat these as success without modifying anything:
@@ -231,6 +273,8 @@ The tool should treat these as success without modifying anything:
 
 Running the same command multiple times should produce the same filesystem state and should not fail if the desired symlinks already exist correctly.
 
+Running the same delete command multiple times should also be safe and should succeed even if the package's symlinks have already been removed.
+
 ## Logging Requirements
 
 ### Verbose Level 0
@@ -244,7 +288,9 @@ Running the same command multiple times should produce the same filesystem state
 Examples:
 
 - `stowing package 'base'`
+- `deleting package 'base'`
 - `created 4 symlinks`
+- `removed 4 symlinks`
 
 ### Verbose Level 2
 
@@ -255,6 +301,8 @@ Examples:
 - `mkdir $HOME/bin`
 - `link $HOME/.bashrc.init -> ../repo/base/.bashrc.init`
 - `link $HOME/.config/wezterm -> ../repo/wezterm/.config/wezterm`
+- `unlink $HOME/.bashrc.init`
+- `rmdir $HOME/bin`
 
 ## Technical Requirements
 
@@ -262,7 +310,7 @@ Examples:
 - Must run on Linux.
 - Use relative symlinks where practical.
 - Must support UTF-8 file paths supported by Rust standard library behavior.
-- Should be structured so delete/restow features can be added later.
+- Should be structured so restow/refold features can be added later.
 
 ## Proposed Internal Design
 
@@ -276,6 +324,7 @@ Examples:
 - Conflict detection
 - Operation execution
 - Logging
+- Ownership verification for delete operations
 
 ### Execution Model
 
@@ -284,7 +333,7 @@ Two-phase approach:
 1. Plan
    - Scan packages
    - Resolve fold rules
-   - Compute intended mkdir and symlink operations
+   - Compute intended mkdir, symlink, unlink, and cleanup operations
    - Detect conflicts
 
 2. Apply
@@ -300,6 +349,7 @@ Examples:
 - `fold path 'wezterm/.config/wezterm' does not exist in package`
 - `conflict at '$HOME/.bashrc.init': existing file is not a matching symlink`
 - `target directory '$HOME' does not exist`
+- `cannot delete '$HOME/.bashrc.init': symlink does not belong to package 'base'`
 
 ## Acceptance Criteria
 
@@ -322,6 +372,42 @@ ministow --target=$HOME base
 ```
 
 Then links are created under `$HOME`.
+
+### Delete Package
+
+Given package `base` has already been stowed, when the user runs:
+
+```bash
+ministow --delete base
+```
+
+Then symlinks belonging to `base` are removed from the target.
+
+### Delete Package With Short Flag
+
+Given package `base` has already been stowed, when the user runs:
+
+```bash
+ministow -D base
+```
+
+Then the result is the same as `ministow --delete base`.
+
+### Delete Folded Directory
+
+Given:
+
+```bash
+ministow --target=$HOME --fold=wezterm/.config/wezterm wezterm
+```
+
+And the package was previously installed, when the user runs:
+
+```bash
+ministow --target=$HOME --fold=wezterm/.config/wezterm --delete wezterm
+```
+
+Then the folded symlink at `$HOME/.config/wezterm` is removed.
 
 ### Directory Folding
 
@@ -381,6 +467,10 @@ Then effective verbosity is `2`.
 
 Given a package has already been stowed successfully, when the same command is run again, then the tool exits successfully and does not duplicate or break links.
 
+### Idempotent Delete Re-Run
+
+Given a package has already been deleted successfully, when the same delete command is run again, then the tool exits successfully and does not fail.
+
 ### Conflict Detection
 
 Given an existing non-symlink file at a target path required by a package, when `ministow` is run, then it must fail without making partial changes.
@@ -389,7 +479,8 @@ Given an existing non-symlink file at a target path required by a package, when 
 
 ### v1
 
-- Install/stow only
+- Install/stow
+- Unstow/delete via `-D` and `--delete`
 - Config file support
 - Selective fold rules
 - Safe conflict detection
@@ -398,7 +489,6 @@ Given an existing non-symlink file at a target path required by a package, when 
 
 ### Future
 
-- Unstow/delete
 - Restow
 - Refolding after delete
 - Ignore rules
