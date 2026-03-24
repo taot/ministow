@@ -321,7 +321,17 @@ fn build_context(cwd: &Path, options: EffectiveOptions) -> Result<AppContext, St
         });
     }
 
-    for fold in &options.folds {
+    let active_folds: BTreeSet<_> = options
+        .folds
+        .iter()
+        .filter(|fold| match fold_package_name(fold) {
+            Some(package) => package_names.contains(package),
+            None => true,
+        })
+        .cloned()
+        .collect();
+
+    for fold in &active_folds {
         validate_fold_path(cwd, &package_names, fold)?;
     }
 
@@ -331,8 +341,16 @@ fn build_context(cwd: &Path, options: EffectiveOptions) -> Result<AppContext, St
         dry_run: options.dry_run,
         delete: options.delete,
         packages,
-        folds: options.folds,
+        folds: active_folds,
     })
+}
+
+fn fold_package_name(fold: &str) -> Option<&str> {
+    let mut components = Path::new(fold).components();
+    match components.next() {
+        Some(Component::Normal(name)) => name.to_str(),
+        _ => None,
+    }
 }
 
 fn validate_fold_path(
@@ -341,13 +359,10 @@ fn validate_fold_path(
     fold: &str,
 ) -> Result<(), String> {
     let fold_path = Path::new(fold);
-    let mut components = fold_path.components();
-    let package = match components.next() {
-        Some(Component::Normal(name)) => name.to_string_lossy().to_string(),
-        _ => return Err(format!("fold path '{}' does not exist in package", fold)),
-    };
+    let package = fold_package_name(fold)
+        .ok_or_else(|| format!("fold path '{}' does not exist in package", fold))?;
 
-    if !package_names.contains(&package) {
+    if !package_names.contains(package) {
         return Err(format!("fold path '{}' does not exist in package", fold));
     }
 

@@ -156,6 +156,32 @@ fn config_file_is_loaded_and_cli_overrides_verbose() {
 }
 
 #[test]
+fn ignores_configured_folds_for_unselected_packages() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+
+    fs::create_dir_all(repo.join("base/.bashrc.includes")).unwrap();
+    fs::write(
+        repo.join("base/.bashrc.includes/base"),
+        "source ~/.bashrc.init\n",
+    )
+    .unwrap();
+    fs::write(
+        repo.join(".ministowrc"),
+        "--fold=base/.bashrc.includes\n--fold=wezterm/.config/wezterm\n",
+    )
+    .unwrap();
+
+    bin()
+        .current_dir(&repo)
+        .args(["--dry-run", "--verbose=2", "wezterm"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("link "))
+        .stderr(predicates::str::is_empty());
+}
+
+#[test]
 fn detects_conflicts_without_partial_changes() {
     let temp = setup_repo();
     let repo = temp.path().join("repo");
