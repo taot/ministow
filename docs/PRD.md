@@ -20,6 +20,7 @@ The tool should let users choose exactly which package subdirectories are folded
 - Preserve relative file layout from package to target.
 - Allow users to explicitly choose which package subdirectories should be tree-folded.
 - Support configuration through both CLI arguments and a config file.
+- Support dry-run planning, including an option to ignore install conflicts while planning.
 - Be safe, predictable, and idempotent.
 
 ## Non-Goals
@@ -188,6 +189,12 @@ Behavior:
 - In combination with verbose output, show what would happen without applying changes.
 - Applies to both install and delete actions.
 
+#### `--ignore-conflicts`, `-I`
+
+- Only valid together with `--dry-run`.
+- Skips install target conflict validation during planning so users can inspect the operations that would still be performed.
+- Does not affect delete-mode ownership checks.
+
 #### `-D`, `--delete`
 
 - Delete symlinks for the given package or packages from the target directory.
@@ -210,7 +217,13 @@ Behavior:
 
 ### Config Format
 
-The config file contains command-line style options, one per line. Example:
+The config file contains command-line style options, one per line.
+
+- Blank lines are ignored.
+- Lines starting with `#` are ignored.
+- Boolean flags may appear without a value.
+
+Example:
 
 ```text
 --target=$HOME
@@ -222,8 +235,9 @@ The config file contains command-line style options, one per line. Example:
 ### Precedence Rules
 
 - All CLI options override config file values.
-- This applies to both single-value and repeatable options.
-- If an option is specified in both places, the CLI-provided value is the effective value.
+- For single-value options, the CLI value wins.
+- For `--fold`, any CLI-provided fold list replaces the config-provided fold list.
+- Boolean flags are enabled if either CLI or config enables them.
 
 ### Environment Expansion
 
@@ -254,12 +268,14 @@ Cases:
 - Existing regular file at target path where symlink is needed -> error
 - Existing directory at target path where file symlink is needed -> error
 - Existing symlink pointing somewhere else -> error
+- Existing file, directory, or symlink at a path that must act as a parent directory -> error
 
 For delete mode:
 
 - Existing non-symlink files matching package paths must not be removed.
 - Existing symlinks not pointing into the selected package must not be removed.
 - Existing directories containing entries not owned by the selected package must not be removed.
+- A mismatched symlink that still resolves inside the selected package root is an error.
 
 ### No-Op Cases
 
@@ -272,6 +288,7 @@ The tool should treat these as success without modifying anything:
 
 - Parent directories in the target should be created automatically when needed.
 - Existing directories may be reused if they are compatible with the planned install.
+- The target directory itself must already exist and must be a directory.
 
 ## Idempotency
 
@@ -300,6 +317,7 @@ Examples:
 
 - Show every planned/applied filesystem action.
 - In dry-run mode, show every planned filesystem action without applying it.
+- Omit actions for links and directories that are already in the desired state.
 
 Examples:
 
@@ -315,6 +333,7 @@ Examples:
 - Must run on Linux and MacOS.
 - Use relative symlinks where practical.
 - Must support UTF-8 file paths supported by Rust standard library behavior.
+- Accept package names with trailing `/` or `\` and normalize them.
 - Should be structured so restow/refold features can be added later.
 
 ## Proposed Internal Design
@@ -355,7 +374,9 @@ Examples:
 - `package 'base' does not exist`
 - `fold path 'wezterm/.config/wezterm' does not exist in package`
 - `conflict at '$HOME/.bashrc.init': existing file is not a matching symlink`
+- `conflict at '$HOME/.config': existing file is not a compatible directory`
 - `target directory '$HOME' does not exist`
+- `--ignore-conflicts requires --dry-run`
 - `cannot delete '$HOME/.bashrc.init': symlink does not belong to package 'base'`
 
 ## Acceptance Criteria
@@ -436,6 +457,16 @@ ministow -N --delete --verbose=2 base
 
 Then no filesystem changes are made, and the tool reports the delete operations it would perform.
 
+### Dry Run Ignore Conflicts
+
+Given an existing conflicting file at a target path, when the user runs:
+
+```bash
+ministow --dry-run --ignore-conflicts --verbose=2 base
+```
+
+Then install target conflict validation is skipped, only still-applicable operations are reported, and no filesystem changes are made.
+
 ### Help Output
 
 When the user runs:
@@ -506,6 +537,24 @@ ministow --verbose=2 wezterm
 
 Then effective verbosity is `2`.
 
+### CLI Fold List Replaces Config Fold List
+
+Given `.ministowrc` contains fold rules and the user also passes one or more `--fold` options on the CLI, then only the CLI-provided fold rules are used.
+
+### Ignore Configured Folds For Unselected Packages
+
+Given `.ministowrc` contains fold rules for multiple packages, when the user stows only one package, then only fold rules relevant to the selected package set are validated and applied.
+
+### Trailing Slash Package Name
+
+Given a package `fcitx`, when the user runs:
+
+```bash
+ministow fcitx/
+```
+
+Then the tool treats it the same as `ministow fcitx`.
+
 ### Idempotent Re-Run
 
 Given a package has already been stowed successfully, when the same command is run again, then the tool exits successfully and does not duplicate or break links.
@@ -527,6 +576,7 @@ Given an existing non-symlink file at a target path required by a package, when 
 - Config file support
 - Selective fold rules
 - Dry-run support via `-N` and `--dry-run`
+- Conflict-skipping planning via `-I` and `--ignore-conflicts`
 - Built-in help output via `-h` and `--help`
 - Safe conflict detection
 - Idempotent behavior
@@ -539,8 +589,13 @@ Given an existing non-symlink file at a target path required by a package, when 
 - Ignore rules
 - Dotfile rewriting mode similar to Stow `--dotfiles`
 
-## Open Questions
+## Current v1 Decisions
 
-- Whether v1 should require the target directory to already exist or create it if missing.
-- Whether fold rules that do not match any package path should be hard errors or warnings.
-- Whether to support reading both `.ministowrc` in cwd and a home config file in the future.
+- The target directory must already exist; `ministow` does not create it.
+- Fold rules for selected packages are hard errors if they do not resolve to an existing directory.
+- Fold rules for unselected packages are ignored.
+- The default config file location is `.ministowrc` in the current working directory.
+
+## Future Considerations
+
+- Support reading an additional home-directory config file.
