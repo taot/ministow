@@ -1,5 +1,7 @@
 # Task 002: Package Discovery and Validation
 
+Status: `[ ]` not started
+
 ## Goal
 
 Validate requested packages and fold directives before any filesystem changes are planned.

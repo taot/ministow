@@ -1,5 +1,7 @@
 # Task 004: Selective Fold Rules
 
+Status: `[ ]` not started
+
 ## Goal
 
 Implement exact-match directory folding so selected package subdirectories are linked as whole directories.

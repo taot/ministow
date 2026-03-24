@@ -1,5 +1,7 @@
 # Task 005: Delete Planning and Cleanup
 
+Status: `[ ]` not started
+
 ## Goal
 
 Implement delete-mode planning that removes only symlinks owned by the selected package and cleans up empty directories safely.

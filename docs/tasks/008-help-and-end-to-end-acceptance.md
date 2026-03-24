@@ -1,5 +1,7 @@
 # Task 008: Help Output and End-to-End Acceptance
 
+Status: `[ ]` not started
+
 ## Goal
 
 Finish the v1 surface with user-facing help text and integration coverage for the PRD acceptance criteria.

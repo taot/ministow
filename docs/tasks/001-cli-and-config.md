@@ -1,5 +1,7 @@
 # Task 001: CLI and Config Surface
 
+Status: `[ ]` not started
+
 ## Goal
 
 Implement the command-line interface and configuration loading model described in the PRD.

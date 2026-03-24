@@ -1,5 +1,7 @@
 # Task 003: Install Planning
 
+Status: `[ ]` not started
+
 ## Goal
 
 Plan install-mode filesystem operations for package contents that should be linked into the target.

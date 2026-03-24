@@ -1,5 +1,7 @@
 # Task 006: Conflict Detection and Idempotency
 
+Status: `[ ]` not started
+
 ## Goal
 
 Enforce safety rules so `ministow` avoids destructive behavior and remains idempotent across install and delete operations.

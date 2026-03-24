@@ -1,5 +1,7 @@
 # Task 007: Execution, Dry-Run, and Logging
 
+Status: `[ ]` not started
+
 ## Goal
 
 Apply planned operations safely, support dry-run mode, and emit logs that match the configured verbosity.
