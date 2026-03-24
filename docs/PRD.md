@@ -182,11 +182,21 @@ Behavior:
 
 - Use a specific config file instead of the default.
 
+#### `--dry-run`, `-N`
+
+- Do not perform any operations that modify the file system.
+- In combination with verbose output, show what would happen without applying changes.
+- Applies to both install and delete actions.
+
 #### `-D`, `--delete`
 
 - Delete symlinks for the given package or packages from the target directory.
 - The same package argument rules apply as install mode.
 - When omitted, the action is install/stow.
+
+#### `--help`, `-h`
+
+- Print the help message and exit.
 
 ## Config File Requirements
 
@@ -289,6 +299,7 @@ Examples:
 ### Verbose Level 2
 
 - Show every planned/applied filesystem action.
+- In dry-run mode, show every planned filesystem action without applying it.
 
 Examples:
 
@@ -336,6 +347,8 @@ Two-phase approach:
 ## Error Handling Requirements
 
 Errors should be clear and actionable.
+
+The help output should clearly document all supported options, action flags, defaults, and usage syntax.
 
 Examples:
 
@@ -402,6 +415,42 @@ ministow --target=$HOME --fold=wezterm/.config/wezterm --delete wezterm
 ```
 
 Then the folded symlink at `$HOME/.config/wezterm` is removed.
+
+### Dry Run
+
+Given package `base`, when the user runs:
+
+```bash
+ministow --dry-run --verbose=2 base
+```
+
+Then no filesystem changes are made, and the tool reports the operations it would perform.
+
+### Dry Run Delete
+
+Given package `base` has already been stowed, when the user runs:
+
+```bash
+ministow -N --delete --verbose=2 base
+```
+
+Then no filesystem changes are made, and the tool reports the delete operations it would perform.
+
+### Help Output
+
+When the user runs:
+
+```bash
+ministow --help
+```
+
+Or:
+
+```bash
+ministow -h
+```
+
+Then the tool prints a help message describing usage, arguments, options, defaults, and exits successfully.
 
 ### Directory Folding
 
@@ -477,6 +526,8 @@ Given an existing non-symlink file at a target path required by a package, when 
 - Unstow/delete via `-D` and `--delete`
 - Config file support
 - Selective fold rules
+- Dry-run support via `-N` and `--dry-run`
+- Built-in help output via `-h` and `--help`
 - Safe conflict detection
 - Idempotent behavior
 - Verbose logging
@@ -486,7 +537,6 @@ Given an existing non-symlink file at a target path required by a package, when 
 - Restow
 - Refolding after delete
 - Ignore rules
-- Dry-run mode
 - Dotfile rewriting mode similar to Stow `--dotfiles`
 
 ## Open Questions
