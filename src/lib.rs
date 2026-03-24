@@ -440,11 +440,15 @@ fn build_plan(context: &AppContext) -> Result<Plan, String> {
         operations.extend(removable_dirs.into_iter().map(Operation::Rmdir));
     } else {
         for path in mkdirs {
-            operations.push(Operation::Mkdir(path));
+            if should_create_dir(&path)? {
+                operations.push(Operation::Mkdir(path));
+            }
         }
         for (target, source) in links {
-            operations.push(Operation::Link { target, source });
-            link_count += 1;
+            if should_create_link(&target)? {
+                operations.push(Operation::Link { target, source });
+                link_count += 1;
+            }
         }
     }
 
@@ -738,6 +742,22 @@ fn plan_cleanup_dirs(
     }
 
     Ok(removable)
+}
+
+fn should_create_dir(path: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => Ok(!metadata.is_dir()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(true),
+        Err(err) => Err(format!("failed to inspect '{}': {err}", path.display())),
+    }
+}
+
+fn should_create_link(path: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(false),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(true),
+        Err(err) => Err(format!("failed to inspect '{}': {err}", path.display())),
+    }
 }
 
 fn is_dir_removable(

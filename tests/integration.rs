@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use predicates::prelude::PredicateBooleanExt;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -116,17 +117,74 @@ fn dry_run_reports_actions_without_changes() {
     let repo = temp.path().join("repo");
     let target = temp.path().to_path_buf();
 
+    fs::create_dir_all(target.join(".config/plasma-workspace/env")).unwrap();
+    #[cfg(unix)]
+    unix_fs::symlink(repo.join("base/.bashrc.init"), target.join(".bashrc.init")).unwrap();
+
     bin()
         .current_dir(&repo)
         .args(["--dry-run", "--verbose=2", "base"])
         .assert()
         .success()
+        .stdout(predicates::str::contains("stowing package 'base'"))
         .stdout(predicates::str::contains(format!(
-            "link {} -> repo/base/.bashrc.init",
-            target.join(".bashrc.init").display()
-        )));
+            "link {} -> repo/base/.bashrc.env",
+            target.join(".bashrc.env").display()
+        )))
+        .stdout(
+            predicates::str::contains(format!("mkdir {}", target.join(".config").display())).not(),
+        )
+        .stdout(
+            predicates::str::contains(format!(
+                "mkdir {}",
+                target.join(".config/plasma-workspace").display()
+            ))
+            .not(),
+        )
+        .stdout(
+            predicates::str::contains(format!(
+                "mkdir {}",
+                target.join(".config/plasma-workspace/env").display()
+            ))
+            .not(),
+        )
+        .stdout(
+            predicates::str::contains(format!(
+                "link {} -> repo/base/.bashrc.init",
+                target.join(".bashrc.init").display()
+            ))
+            .not(),
+        );
 
     assert!(!temp.path().join("target-home/.bashrc.init").exists());
+}
+
+#[test]
+fn dry_run_after_install_is_quiet_for_satisfied_targets() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+    let target = temp.path().join("target-home");
+
+    bin()
+        .current_dir(&repo)
+        .args(["--target", target.to_str().unwrap(), "base"])
+        .assert()
+        .success();
+
+    bin()
+        .current_dir(&repo)
+        .args([
+            "--target",
+            target.to_str().unwrap(),
+            "--dry-run",
+            "--verbose=2",
+            "base",
+        ])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("created 0 symlinks"))
+        .stdout(predicates::str::contains("mkdir ").not())
+        .stdout(predicates::str::contains("link ").not());
 }
 
 #[test]
@@ -215,9 +273,17 @@ fn dry_run_ignore_conflicts_skips_install_target_validation() {
         .assert()
         .success()
         .stdout(predicates::str::contains(format!(
-            "link {} -> repo/base/.bashrc.init",
-            target.join(".bashrc.init").display()
-        )));
+            "link {} -> repo/base/.bashrc.env",
+            target.join(".bashrc.env").display()
+        )))
+        .stdout(
+            predicates::str::contains(format!(
+                "link {} -> repo/base/.bashrc.init",
+                target.join(".bashrc.init").display()
+            ))
+            .not(),
+        )
+        .stdout(predicates::str::contains("created 3 symlinks"));
 
     assert_eq!(
         fs::read_to_string(target.join(".bashrc.init")).unwrap(),
