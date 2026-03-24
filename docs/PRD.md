@@ -100,7 +100,7 @@ ministow --fold=wezterm/.config/wezterm wezterm
 Expected result:
 
 ```text
-$TARGET/.config/wezterm -> <repo>/wezterm/.config/wezterm
+/path/to/target/.config/wezterm -> <repo>/wezterm/.config/wezterm
 ```
 
 Instead of separate links for files inside `wezterm/.config/wezterm/`.

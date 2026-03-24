@@ -29,7 +29,7 @@ Implement exact-match directory folding so selected package subdirectories are l
 
 ## Acceptance Criteria
 
-- `ministow --fold=wezterm/.config/wezterm wezterm` plans a single symlink for `$TARGET/.config/wezterm`
+- `ministow --fold=wezterm/.config/wezterm wezterm` plans a single symlink for `/path/to/target/.config/wezterm`
 - No child file links are planned inside the folded directory
 - Multiple fold directives across `wezterm` and `fcitx` are honored in the same run
 

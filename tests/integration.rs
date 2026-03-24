@@ -114,15 +114,17 @@ fn deletes_package_and_cleans_empty_directories() {
 fn dry_run_reports_actions_without_changes() {
     let temp = setup_repo();
     let repo = temp.path().join("repo");
+    let target = temp.path().to_path_buf();
 
     bin()
         .current_dir(&repo)
         .args(["--dry-run", "--verbose=2", "base"])
         .assert()
         .success()
-        .stdout(predicates::str::contains(
-            "link $TARGET/.bashrc.init -> repo/base/.bashrc.init",
-        ));
+        .stdout(predicates::str::contains(format!(
+            "link {} -> repo/base/.bashrc.init",
+            target.join(".bashrc.init").display()
+        )));
 
     assert!(!temp.path().join("target-home/.bashrc.init").exists());
 }
@@ -147,9 +149,10 @@ fn config_file_is_loaded_and_cli_overrides_verbose() {
         .args(["--verbose=2", "wezterm"])
         .assert()
         .success()
-        .stdout(predicates::str::contains(
-            "link $TARGET/.config/wezterm -> ../../repo/wezterm/.config/wezterm",
-        ));
+        .stdout(predicates::str::contains(format!(
+            "link {} -> ../../repo/wezterm/.config/wezterm",
+            target.join(".config/wezterm").display()
+        )));
 }
 
 #[test]

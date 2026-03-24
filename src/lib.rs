@@ -132,7 +132,7 @@ fn run_cli_inner(
 
     for operation in &plan.operations {
         if context.verbose >= 2 {
-            logger.push(render_operation(operation, &context.target));
+            logger.push(render_operation(operation));
         }
     }
 
@@ -790,33 +790,21 @@ fn apply_plan(plan: &Plan) -> Result<(), String> {
     Ok(())
 }
 
-fn render_operation(operation: &Operation, target_root: &Path) -> String {
+fn render_operation(operation: &Operation) -> String {
     match operation {
-        Operation::Mkdir(path) => format!("mkdir {}", display_path(path, target_root)),
+        Operation::Mkdir(path) => format!("mkdir {}", display_path(path)),
         Operation::Link { target, source } => {
-            let parent = target.parent().unwrap_or(target_root);
+            let parent = target.parent().unwrap_or_else(|| Path::new("/"));
             let relative = relative_path(source, parent);
-            format!(
-                "link {} -> {}",
-                display_path(target, target_root),
-                relative.display()
-            )
+            format!("link {} -> {}", display_path(target), relative.display())
         }
-        Operation::Unlink(path) => format!("unlink {}", display_path(path, target_root)),
-        Operation::Rmdir(path) => format!("rmdir {}", display_path(path, target_root)),
+        Operation::Unlink(path) => format!("unlink {}", display_path(path)),
+        Operation::Rmdir(path) => format!("rmdir {}", display_path(path)),
     }
 }
 
-fn display_path(path: &Path, target_root: &Path) -> String {
-    if let Ok(relative) = path.strip_prefix(target_root) {
-        if relative.as_os_str().is_empty() {
-            "$TARGET".to_string()
-        } else {
-            format!("$TARGET/{}", relative.display())
-        }
-    } else {
-        path.display().to_string()
-    }
+fn display_path(path: &Path) -> String {
+    path.display().to_string()
 }
 
 fn add_cleanup_parents(path: &Path, cleanup_dirs: &mut BTreeSet<PathBuf>) {
