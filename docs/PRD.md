@@ -154,12 +154,12 @@ The default action is install/stow. Use `-D` or `--delete` to unstow packages.
 
 ### Options
 
-#### `--target=<DIR>`
+#### `--target=<DIR>`, `-T <DIR>`
 
 - Set the target directory.
 - If omitted, default to the parent directory of the current working directory.
 
-#### `--verbose=<LEVEL>`
+#### `--verbose=<LEVEL>`, `-v <LEVEL>`
 
 - Verbosity levels: `0`, `1`, `2`
 - Default: `0`
@@ -170,7 +170,7 @@ Behavior:
 - `1`: high-level operations
 - `2`: detailed per-path actions
 
-#### `--fold=<DIR>`
+#### `--fold=<DIR>`, `-F <DIR>`
 
 - Mark a package subdirectory for tree folding.
 - Repeatable.
@@ -178,7 +178,7 @@ Behavior:
   - `--fold=wezterm/.config/wezterm`
   - `--fold=fcitx/.local/share/fcitx5/rime`
 
-#### `--config=<FILE>`
+#### `--config=<FILE>`, `-C <FILE>`
 
 - Use a specific config file instead of the default.
 
@@ -211,15 +211,9 @@ The config file contains command-line style options, one per line. Example:
 
 ### Precedence Rules
 
-- CLI options override config values for single-value options:
-  - `--target`
-  - `--verbose`
-  - `--config`
-- Action flags in config files are ignored:
-  - `-D`
-  - `--delete`
-- Repeatable options are additive:
-  - `--fold` entries from config and CLI are combined
+- All CLI options override config file values.
+- This applies to both single-value and repeatable options.
+- If an option is specified in both places, the CLI-provided value is the effective value.
 
 ### Environment Expansion
 
