@@ -202,6 +202,45 @@ fn detects_conflicts_without_partial_changes() {
 }
 
 #[test]
+fn dry_run_ignore_conflicts_skips_install_target_validation() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+    let target = temp.path().to_path_buf();
+
+    fs::write(target.join(".bashrc.init"), "conflict\n").unwrap();
+
+    bin()
+        .current_dir(&repo)
+        .args(["--dry-run", "--ignore-conflicts", "--verbose=2", "base"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains(format!(
+            "link {} -> repo/base/.bashrc.init",
+            target.join(".bashrc.init").display()
+        )));
+
+    assert_eq!(
+        fs::read_to_string(target.join(".bashrc.init")).unwrap(),
+        "conflict\n"
+    );
+}
+
+#[test]
+fn ignore_conflicts_requires_dry_run() {
+    let temp = setup_repo();
+    let repo = temp.path().join("repo");
+
+    bin()
+        .current_dir(&repo)
+        .args(["--ignore-conflicts", "base"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains(
+            "--ignore-conflicts requires --dry-run",
+        ));
+}
+
+#[test]
 fn reruns_install_and_delete_idempotently() {
     let temp = setup_repo();
     let repo = temp.path().join("repo");

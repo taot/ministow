@@ -23,6 +23,7 @@ Options:
   -F, --fold <DIR>       Fold a package subdirectory; repeatable
   -C, --config <FILE>    Read options from a config file (default: .ministowrc in cwd)
   -N, --dry-run          Print planned actions without modifying the filesystem
+  -I, --ignore-conflicts Ignore install target conflicts during dry-run planning
   -D, --delete           Remove symlinks for the selected package(s)
   -h, --help             Print help and exit
 ";
@@ -34,6 +35,7 @@ struct RawOptions {
     folds: Vec<String>,
     config: Option<String>,
     dry_run: bool,
+    ignore_conflicts: bool,
     delete: bool,
     help: bool,
     packages: Vec<String>,
@@ -46,6 +48,7 @@ struct EffectiveOptions {
     verbose: u8,
     folds: BTreeSet<String>,
     dry_run: bool,
+    ignore_conflicts: bool,
     delete: bool,
     packages: Vec<String>,
 }
@@ -55,6 +58,7 @@ struct AppContext {
     target: PathBuf,
     verbose: u8,
     dry_run: bool,
+    ignore_conflicts: bool,
     delete: bool,
     packages: Vec<Package>,
     folds: BTreeSet<String>,
@@ -166,6 +170,7 @@ fn parse_args_with_mode(args: &[String], require_packages: bool) -> Result<RawOp
         match arg.as_str() {
             "-h" | "--help" => raw.help = true,
             "-N" | "--dry-run" => raw.dry_run = true,
+            "-I" | "--ignore-conflicts" => raw.ignore_conflicts = true,
             "-D" | "--delete" => raw.delete = true,
             "-T" | "--target" => {
                 raw.target = Some(
@@ -283,12 +288,19 @@ fn merge_options(
     } else {
         config.folds.into_iter().collect()
     };
+    let dry_run = cli.dry_run || config.dry_run;
+    let ignore_conflicts = cli.ignore_conflicts || config.ignore_conflicts;
+
+    if ignore_conflicts && !dry_run {
+        return Err("--ignore-conflicts requires --dry-run".to_string());
+    }
 
     Ok(EffectiveOptions {
         target,
         verbose,
         folds,
-        dry_run: cli.dry_run || config.dry_run,
+        dry_run,
+        ignore_conflicts,
         delete: cli.delete || config.delete,
         packages: cli.packages,
     })
@@ -339,6 +351,7 @@ fn build_context(cwd: &Path, options: EffectiveOptions) -> Result<AppContext, St
         target: options.target,
         verbose: options.verbose,
         dry_run: options.dry_run,
+        ignore_conflicts: options.ignore_conflicts,
         delete: options.delete,
         packages,
         folds: active_folds,
@@ -408,7 +421,9 @@ fn build_plan(context: &AppContext) -> Result<Plan, String> {
         }
     }
 
-    validate_install_plan(&context.target, &mkdirs, &links)?;
+    if !(context.dry_run && context.ignore_conflicts && !context.delete) {
+        validate_install_plan(&context.target, &mkdirs, &links)?;
+    }
     validate_delete_plan(&unlinks, &context.packages)?;
 
     let mut operations = Vec::new();
