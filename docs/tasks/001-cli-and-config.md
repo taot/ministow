@@ -1,6 +1,6 @@
 # Task 001: CLI and Config Surface
 
-Status: `[ ]` not started
+Status: `[x]` completed
 
 ## Goal
 

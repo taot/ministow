@@ -1,6 +1,6 @@
 # Task 003: Install Planning
 
-Status: `[ ]` not started
+Status: `[x]` completed
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Task 008: Help Output and End-to-End Acceptance
 
-Status: `[ ]` not started
+Status: `[x]` completed
 
 ## Goal
 

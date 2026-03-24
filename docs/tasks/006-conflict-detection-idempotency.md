@@ -1,6 +1,6 @@
 # Task 006: Conflict Detection and Idempotency
 
-Status: `[ ]` not started
+Status: `[x]` completed
 
 ## Goal
 

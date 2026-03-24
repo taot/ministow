@@ -1,6 +1,6 @@
 # Task 004: Selective Fold Rules
 
-Status: `[ ]` not started
+Status: `[x]` completed
 
 ## Goal
 
