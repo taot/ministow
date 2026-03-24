@@ -312,7 +312,7 @@ Examples:
 ## Technical Requirements
 
 - Implemented in Rust.
-- Must run on Linux.
+- Must run on Linux and MacOS.
 - Use relative symlinks where practical.
 - Must support UTF-8 file paths supported by Rust standard library behavior.
 - Should be structured so restow/refold features can be added later.
